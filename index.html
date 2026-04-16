@@ -117,7 +117,7 @@
     <div class="search-grid">
       <div class="field-group">
         <label>Tipo de negocio</label>
-        <input type="text" id="query" placeholder="ej: dentist, restaurant, nautical, plumber..." />
+        <input type="text" id="query" placeholder="ej: motonautica, fontanero, restaurante, dentista..." />
       </div>
       <div class="field-group">
         <label>Zona / Ciudad</label>
@@ -327,14 +327,94 @@
       .join('\n');
   }
 
+  // Diccionario ES → EN para búsquedas en Google Maps
+  const DICT = {
+    // Náutica
+    'motonautica': 'nautical', 'motonáutica': 'nautical', 'nautica': 'nautical', 'náutica': 'nautical',
+    'alquiler de barcos': 'boat rental', 'alquiler barcos': 'boat rental', 'charter nautico': 'boat charter',
+    'charter náutico': 'boat charter', 'escuela nautica': 'sailing school', 'escuela náutica': 'sailing school',
+    'tienda nautica': 'nautical store', 'tienda náutica': 'nautical store', 'puerto deportivo': 'marina',
+    'deportes acuaticos': 'water sports', 'deportes acuáticos': 'water sports', 'buceo': 'diving',
+    'surf': 'surf school', 'kitesurf': 'kitesurfing', 'vela': 'sailing', 'yate': 'yacht',
+    // Salud
+    'dentista': 'dentist', 'clinica dental': 'dental clinic', 'clínica dental': 'dental clinic',
+    'medico': 'doctor', 'médico': 'doctor', 'clinica': 'clinic', 'clínica': 'clinic',
+    'farmacia': 'pharmacy', 'fisioterapia': 'physiotherapy', 'fisioterapeuta': 'physiotherapist',
+    'optometria': 'optometry', 'optica': 'optician', 'óptica': 'optician', 'veterinario': 'veterinarian',
+    'psicologo': 'psychologist', 'psicólogo': 'psychologist', 'nutricionista': 'nutritionist',
+    // Restauración
+    'restaurante': 'restaurant', 'bar': 'bar', 'cafeteria': 'cafe', 'cafetería': 'cafe',
+    'pasteleria': 'bakery', 'panaderia': 'bakery', 'panadería': 'bakery', 'pastelería': 'pastry shop',
+    'pizzeria': 'pizzeria', 'pizzería': 'pizzeria', 'heladeria': 'ice cream shop', 'heladería': 'ice cream shop',
+    'catering': 'catering', 'comida rapida': 'fast food', 'comida rápida': 'fast food',
+    // Belleza y bienestar
+    'peluqueria': 'hair salon', 'peluquería': 'hair salon', 'barberia': 'barber', 'barbería': 'barber',
+    'estetica': 'beauty salon', 'estética': 'beauty salon', 'spa': 'spa', 'gimnasio': 'gym',
+    'salon de uñas': 'nail salon', 'tatuaje': 'tattoo', 'masajes': 'massage',
+    // Educación
+    'colegio': 'school', 'academia': 'academy', 'guarderia': 'kindergarten', 'guardería': 'kindergarten',
+    'universidad': 'university', 'autoescuela': 'driving school', 'clases de idiomas': 'language school',
+    // Servicios del hogar
+    'fontanero': 'plumber', 'electricista': 'electrician', 'carpintero': 'carpenter',
+    'albanil': 'construction', 'albañil': 'construction', 'pintor': 'painter', 'cerrajero': 'locksmith',
+    'reformas': 'renovation', 'arquitecto': 'architect', 'inmobiliaria': 'real estate',
+    'limpieza': 'cleaning service', 'jardinero': 'gardener', 'jardineria': 'landscaping', 'jardinería': 'landscaping',
+    // Automoción
+    'taller mecanico': 'auto repair', 'taller mecánico': 'auto repair', 'taller': 'car repair',
+    'concesionario': 'car dealer', 'lavado de coches': 'car wash', 'neumaticos': 'tire shop', 'neumáticos': 'tire shop',
+    'grua': 'tow truck', 'grúa': 'tow truck', 'alquiler de coches': 'car rental',
+    // Alojamiento
+    'hotel': 'hotel', 'hostal': 'hostel', 'apartamento turistico': 'vacation rental',
+    'apartamento turístico': 'vacation rental', 'camping': 'campground', 'rural': 'rural hotel',
+    // Comercio
+    'supermercado': 'supermarket', 'ferreteria': 'hardware store', 'ferretería': 'hardware store',
+    'papeleria': 'stationery', 'papelería': 'stationery', 'libreria': 'bookstore', 'librería': 'bookstore',
+    'floristeria': 'florist', 'floristería': 'florist', 'joyeria': 'jewelry', 'joyería': 'jewelry',
+    'ropa': 'clothing store', 'moda': 'fashion', 'zapateria': 'shoe store', 'zapatería': 'shoe store',
+    'electrodomesticos': 'appliance store', 'electrodomésticos': 'appliance store',
+    // Tecnología
+    'informatica': 'computer store', 'informática': 'computer store', 'reparacion moviles': 'phone repair',
+    'reparación móviles': 'phone repair', 'agencia de marketing': 'marketing agency',
+    'diseño web': 'web design', 'fotografia': 'photography', 'fotografía': 'photography',
+    // Finanzas y legal
+    'abogado': 'lawyer', 'gestor': 'accounting', 'gestoria': 'accounting', 'gestoría': 'accounting',
+    'asesoria': 'consulting', 'asesoría': 'consulting', 'notario': 'notary', 'banco': 'bank',
+    'seguro': 'insurance', 'seguros': 'insurance agency',
+    // Eventos
+    'organizacion de eventos': 'event planning', 'organización de eventos': 'event planning',
+    'musica': 'music', 'música': 'music', 'fotografia de bodas': 'wedding photography',
+    'decoracion': 'decoration', 'decoración': 'decoration',
+    // Transporte y logística
+    'transporte': 'transport', 'mudanzas': 'moving company', 'taxi': 'taxi', 'mensajeria': 'courier',
+    'mensajería': 'courier', 'almacen': 'warehouse', 'almacén': 'warehouse',
+  };
+
+  function translateQuery(q) {
+    const lower = q.toLowerCase().trim();
+    // Exact match
+    if (DICT[lower]) return DICT[lower];
+    // Partial match — find longest key that matches
+    let best = null;
+    let bestLen = 0;
+    for (const [es, en] of Object.entries(DICT)) {
+      if (lower.includes(es) && es.length > bestLen) {
+        best = en; bestLen = es.length;
+      }
+    }
+    return best || q; // fallback: use original
+  }
+
   async function startSearch() {
-    const query = document.getElementById('query').value.trim();
+    const queryRaw = document.getElementById('query').value.trim();
     const location = document.getElementById('location').value.trim();
     const radius = document.getElementById('radius').value;
     const maxResults = parseInt(document.getElementById('max-results').value);
     const fetchEmails = document.getElementById('fetch-email').checked;
 
-    if (!query || !location) { showError('Introduce el tipo de negocio y la zona.'); return; }
+    if (!queryRaw || !location) { showError('Introduce el tipo de negocio y la zona.'); return; }
+
+    const query = translateQuery(queryRaw);
+    const translated = query !== queryRaw;
 
     hideError();
     allResults = [];
@@ -345,11 +425,11 @@
     document.getElementById('btn-search').disabled = true;
     document.getElementById('btn-export').disabled = true;
     document.getElementById('btn-sheets').disabled = true;
-    setStatus('Localizando la zona…', '');
+    setStatus(translated ? `Buscando "${queryRaw}" → "${query}"…` : 'Localizando la zona…', '');
 
     try {
       const { lat, lng } = await geocode(location);
-      const textQuery = `${query} en ${location}`;
+      const textQuery = `${query} in ${location}`;
       let pageToken = null;
       let page = 0;
       const maxPages = Math.ceil(maxResults / 20); // 1, 2 o 3 páginas
