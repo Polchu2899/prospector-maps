@@ -309,7 +309,7 @@
     if (cell) cell.innerHTML = email ? `<span class="cell-email">${email}</span>` : '<span class="cell-empty">—</span>';
   }
 
-  function buildCSV() {
+  function buildCSV(sep = ';') {
     const headers = ['Número', 'Nombre', 'Dirección', 'Teléfono', 'Web', 'Email', 'Valoración', 'Reseñas', 'Categoría'];
     const rows = allResults.map((r, i) => [
       i + 1,
@@ -323,7 +323,7 @@
       r.primaryTypeDisplayName?.text || '',
     ]);
     return [headers, ...rows]
-      .map(row => row.map(c => `"${String(c || '').replace(/"/g, '""')}"`).join(';'))
+      .map(row => row.map(c => `"${String(c || '').replace(/"/g, '""')}"`).join(sep))
       .join('\n');
   }
 
@@ -412,36 +412,36 @@
     }
   }
 
-  function exportCSV() {
-    if (!allResults.length) return;
-    const csv = buildCSV();
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  function downloadBlob(content, filename) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function getFilename() {
     const q = document.getElementById('query').value;
     const l = document.getElementById('location').value;
-    a.download = `prospector_${q}_${l}_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    return `prospector_${q}_${l}_${new Date().toISOString().slice(0,10)}.csv`;
+  }
+
+  function exportCSV() {
+    if (!allResults.length) return;
+    // Excel español: separador ; con BOM
+    downloadBlob('\uFEFF' + buildCSV(';'), getFilename());
   }
 
   function openInSheets() {
     if (!allResults.length) return;
-    const csv = buildCSV();
-    const encoded = encodeURIComponent(csv);
-    // Abre Google Sheets con los datos pegados via importdata workaround
-    // Lo más directo: copiar CSV al portapapeles y abrir Sheets
-    navigator.clipboard.writeText(csv).then(() => {
-      const sheetsUrl = 'https://sheets.new';
-      window.open(sheetsUrl, '_blank');
+    // Sheets: separador , sin BOM
+    downloadBlob(buildCSV(','), getFilename());
+    setTimeout(() => {
+      window.open('https://sheets.new', '_blank');
       setTimeout(() => {
-        alert('✓ Datos copiados al portapapeles.\n\nEn Google Sheets:\n1. Haz clic en la celda A1\n2. Ctrl+V para pegar\n3. Selecciona "Separado por punto y coma"');
-      }, 500);
-    }).catch(() => {
-      // Fallback: descarga CSV
-      exportCSV();
-    });
+        alert('📂 CSV descargado.\n\nEn Google Sheets:\n1. Archivo → Importar\n2. Selecciona el CSV descargado\n3. Separador: "Coma"\n4. Importar datos\n\n¡Todo en columnas perfectas!');
+      }, 800);
+    }, 300);
   }
 
   window.startSearch = startSearch;
